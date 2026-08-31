@@ -1,0 +1,638 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+
+<style>
+  :root{
+    --bg:#f6f3ec; --ink:#20232b; --muted:#6b7280;
+    --panel:#12141c; --panel-2:#1b1f2a; --panel-border:#2c3140;
+    --accent:#2f9e8f; --accent-dim:#22766a; --amber:#d69a4a; --error:#c85a4f;
+    --card-border:#dcd5c4; --code:#e8e6df;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  .lab{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;padding:28px 16px 64px;min-height:100%;}
+  .lab-inner{max-width:820px;margin:0 auto;}
+  h1{font-family:'Chakra Petch',sans-serif;font-size:clamp(22px,4vw,30px);font-weight:600;margin:0 0 6px;letter-spacing:-.01em;}
+  .lab-header p{color:var(--muted);margin:0 0 20px;line-height:1.6;font-size:14.5px;}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px solid var(--card-border);padding-bottom:0;}
+  .tab-btn{
+    font-family:'IBM Plex Sans Thai';font-weight:500;font-size:13.5px;
+    background:none;border:none;padding:10px 14px;cursor:pointer;color:var(--muted);
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab-btn.active{color:var(--accent-dim);border-bottom-color:var(--accent);font-weight:600;}
+  .tab-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  .week-head{
+    font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:16px;
+    margin:26px 0 12px;padding-top:6px;color:var(--ink);
+  }
+  .week-head:first-child{margin-top:0;}
+
+  .card{background:#fff;border:1px solid var(--card-border);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12px;}
+  th,td{border-bottom:1px solid var(--card-border);padding:6px 8px;text-align:left;white-space:nowrap;}
+  th{color:var(--accent-dim);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
+  .table-scroll{overflow-x:auto;}
+
+  .exercise{background:#fff;border:1px solid var(--card-border);border-radius:16px;padding:20px 20px 18px;margin-bottom:16px;}
+  .ex-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;}
+  .ex-num{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;color:#fff;background:var(--accent);width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;}
+  .ex-prompt{font-size:14px;line-height:1.6;}
+  .hint-toggle,.reveal-toggle{background:none;border:none;color:var(--accent-dim);font-family:'IBM Plex Sans Thai';font-size:12.5px;cursor:pointer;padding:0;margin-top:6px;text-decoration:underline;text-underline-offset:3px;}
+  .hint-box{display:none;font-size:12.5px;color:var(--muted);background:#f7f5ee;border:1px dashed var(--card-border);border-radius:8px;padding:8px 10px;margin-top:8px;}
+  .hint-box.show{display:block;}
+
+  .editor{margin-top:12px;background:var(--panel);border-radius:10px;overflow:hidden;border:1px solid var(--panel-border);}
+  .editor-bar{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--panel-2);font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#8892a6;}
+  textarea{width:100%;min-height:70px;resize:vertical;background:var(--panel);color:var(--code);font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;border:none;padding:11px;outline:none;}
+  textarea:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+
+  .btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  button.action{font-family:'IBM Plex Sans Thai';font-weight:500;font-size:13px;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid transparent;}
+  button.action:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .btn-run{background:var(--accent);color:#fff;}
+  .btn-run:hover{background:var(--accent-dim);}
+  .btn-answer{background:#fff;color:var(--ink);border-color:var(--card-border);}
+  .btn-answer:hover{border-color:var(--amber);color:var(--amber);}
+
+  .result{margin-top:12px;font-size:13px;}
+  .result-label{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);margin-bottom:6px;}
+  .result-error{background:#fbeeec;color:var(--error);border:1px solid #f0cfc9;padding:9px 11px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;}
+  .result-empty{color:var(--muted);font-size:12px;font-style:italic;}
+
+  .answer-block{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--card-border);}
+  .answer-block.show{display:block;}
+  .answer-block pre,.code-block{background:var(--panel);color:var(--code);font-family:'JetBrains Mono',monospace;font-size:12px;padding:12px;border-radius:8px;overflow-x:auto;margin:0 0 10px;white-space:pre;}
+
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--accent-dim);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;}
+  .dot.ok{background:var(--accent);box-shadow:0 0 0 3px rgba(47,158,143,.18);}
+
+  .checklist{list-style:none;padding:0;margin:0;}
+  .checklist li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0ede3;font-size:13.5px;}
+  .checklist li:last-child{border-bottom:none;}
+  .checklist input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none;}
+  .checklist label.done{color:var(--muted);text-decoration:line-through;}
+  .progress-line{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-dim);margin-bottom:10px;}
+
+  .field-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  select,input[type=text]{font-family:'IBM Plex Sans Thai';font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--card-border);background:#fff;}
+  textarea.stats-input{min-height:50px;background:#fff;color:var(--ink);border:1px solid var(--card-border);}
+
+  @media (max-width:520px){ .exercise,.card{padding:15px;} }
+</style>
+
+<div class="lab">
+  <div class="lab-inner">
+    <div class="lab-header">
+      <div class="eyebrow"><span class="dot" id="statusDot"></span><span id="statusText">กำลังเชื่อมต่อฐานข้อมูล…</span></div>
+      <h1>แบบฝึกหัดเฟส 1 — ครบ 9 สัปดาห์</h1>
+      <p>SQL รันได้จริง (ข้อมูลจำลองร้านค้าออนไลน์เดิม) ส่วน Excel/สถิติมีเครื่องมือช่วยเช็คคำตอบ BI เป็นเช็คลิสต์งานที่ต้องทำในโปรแกรมจริง และ Python มีโค้ดอ้างอิงพร้อมผลลัพธ์ที่ควรได้</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="sql">SQL (สัปดาห์ 1–3)</button>
+      <button class="tab-btn" data-tab="excel">Excel (สัปดาห์ 4)</button>
+      <button class="tab-btn" data-tab="stats">สถิติ (สัปดาห์ 5)</button>
+      <button class="tab-btn" data-tab="bi">BI Tool (สัปดาห์ 6–7)</button>
+      <button class="tab-btn" data-tab="python">Python (สัปดาห์ 8–9)</button>
+    </div>
+
+    <div id="tab-sql" class="tab-panel active">
+      <div class="card">
+        <strong style="font-family:'Chakra Petch',sans-serif;font-size:14px;">Dataset: customers + orders</strong>
+        <div class="table-scroll" style="margin-top:10px;"><table id="schemaTable"><tbody><tr><td style="color:var(--muted);font-family:'IBM Plex Sans Thai';">กำลังโหลด…</td></tr></tbody></table></div>
+      </div>
+      <div id="sql-exercises"></div>
+    </div>
+
+    <div id="tab-excel" class="tab-panel">
+      <div class="card">
+        <strong style="font-family:'Chakra Petch',sans-serif;font-size:14px;">ตารางข้อมูล (ก็อปไปวางใน Excel/Sheets เพื่อฝึกจริง)</strong>
+        <div class="table-scroll" style="margin-top:10px;" id="excelTableWrap"></div>
+      </div>
+
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">1–2</div><div>
+          <div class="ex-prompt">Pivot Table: เลือกฟิลด์ที่จะ "แถว" (rows) และ "คอลัมน์" (columns, ไม่บังคับ) เครื่องมือนี้จะคำนวณ SUM(amount) ให้ — ใช้เช็คว่า Pivot Table ที่ทำใน Excel ตรงกันไหม</div>
+        </div></div>
+        <div class="field-row">
+          <select id="pivotRow"><option value="category">category</option><option value="city">city</option><option value="status">status</option></select>
+          <select id="pivotCol"><option value="">(ไม่มีคอลัมน์)</option><option value="category">category</option><option value="city">city</option><option value="status">status</option></select>
+          <button class="action btn-run" id="pivotRun">คำนวณ Pivot</button>
+        </div>
+        <div class="result" id="pivotResultWrap" style="display:none;"><div class="result-label">ผลลัพธ์</div><div id="pivotResult"></div></div>
+      </div>
+
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">3</div><div>
+          <div class="ex-prompt">VLOOKUP/XLOOKUP: พิมพ์ชื่อลูกค้า จะดึงเมืองและภาคมาให้ (ภาค: Bangkok→กลาง, Chiang Mai→เหนือ, Khon Kaen→อีสาน)</div>
+        </div></div>
+        <div class="field-row">
+          <input type="text" id="lookupName" placeholder="เช่น Somchai">
+          <button class="action btn-run" id="lookupRun">ค้นหา</button>
+        </div>
+        <div class="result" id="lookupResultWrap" style="display:none;"><div class="result-label">ผลลัพธ์</div><div id="lookupResult"></div></div>
+      </div>
+
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">4</div><div>
+          <div class="ex-prompt">Conditional Formatting ตัวอย่าง — เขียวถ้า amount &gt; 1000, แดงถ้า status = cancelled ใช้เทียบกับที่ทำใน Excel ของคุณ</div>
+        </div></div>
+        <div class="table-scroll" id="condFormatWrap" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <div id="tab-stats" class="tab-panel">
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">1–2</div><div>
+          <div class="ex-prompt">พิมพ์ชุดตัวเลข (คั่นด้วยจุลภาค) แล้วกดคำนวณ เพื่อเช็ค mean, median, mode, และ standard deviation ที่คุณคำนวณด้วยมือ</div>
+        </div></div>
+        <textarea class="stats-input" id="statsInput">1200, 890, 350, 450, 1500, 690, 320, 199, 2100, 280</textarea>
+        <div class="btn-row"><button class="action btn-run" id="statsRun">คำนวณ</button></div>
+        <div class="result" id="statsResultWrap" style="display:none;"><div class="result-label">ผลลัพธ์</div><div id="statsResult"></div></div>
+      </div>
+
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">4</div><div>
+          <div class="ex-prompt">"เดือนที่ยอดขายไอศกรีมสูง อัตราการจมน้ำก็สูงตาม" — มี correlation จริงไหม และมี causation หรือไม่?</div>
+          <button class="reveal-toggle" data-reveal="q4">ดูแนวทางคำตอบ</button>
+          <div class="hint-box" id="reveal-q4">มี correlation (เกิดพร้อมกันตามฤดูกาล) แต่ไม่มี causation โดยตรง — ตัวแปรกวน (confounding variable) คือ "หน้าร้อน" ทำให้คนกินไอศกรีมเยอะและว่ายน้ำเยอะขึ้นพร้อมกัน</div>
+        </div></div>
+      </div>
+
+      <div class="exercise">
+        <div class="ex-head"><div class="ex-num">5</div><div>
+          <div class="ex-prompt">Correlation ระหว่างงบโฆษณากับยอดขาย = 0.85 อธิบายให้คนไม่สาย data ฟังใน 2 ประโยค</div>
+          <button class="reveal-toggle" data-reveal="q5">ดูแนวทางคำตอบ</button>
+          <div class="hint-box" id="reveal-q5">"งบโฆษณากับยอดขายมีแนวโน้มไปด้วยกันค่อนข้างชัดเจน" แต่ "ตัวเลขนี้ไม่ได้บอกว่าโฆษณาเป็นสาเหตุของยอดขายที่เพิ่มขึ้นเสมอไป อาจมีปัจจัยอื่นร่วมด้วย"</div>
+        </div></div>
+      </div>
+    </div>
+
+    <div id="tab-bi" class="tab-panel">
+      <div class="week-head">สัปดาห์ 6 — พื้นฐาน Interface, Dashboard แรก</div>
+      <div class="card"><ul class="checklist" id="bi-week6"></ul></div>
+      <div class="week-head">สัปดาห์ 7 — Filter, Calculated Field, Dashboard ที่ซับซ้อนขึ้น</div>
+      <div class="card"><ul class="checklist" id="bi-week7"></ul></div>
+      <div class="progress-line" id="bi-progress">ทำแล้ว 0 / 10</div>
+    </div>
+
+    <div id="tab-python" class="tab-panel">
+      <div class="week-head">สัปดาห์ 8 — พื้นฐานภาษา + Pandas เบื้องต้น</div>
+      <div id="py-week8"></div>
+      <div class="week-head">สัปดาห์ 9 — Pandas ต่อ (Merge, Pivot) + ทบทวนรวม</div>
+      <div id="py-week9"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ---------- shared table renderer ---------- */
+function renderTableInto(container, columns, rows){
+  container.innerHTML = "";
+  if(!rows || rows.length === 0){
+    const p = document.createElement('div');
+    p.className = 'result-empty';
+    p.textContent = 'ไม่มีแถวข้อมูล (0 rows)';
+    container.appendChild(p);
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'table-scroll';
+  const table = document.createElement('table');
+  const thead = document.createElement('tr');
+  columns.forEach(c => { const th = document.createElement('th'); th.textContent = c; thead.appendChild(th); });
+  table.appendChild(thead);
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => { const td = document.createElement('td'); td.textContent = cell; tr.appendChild(td); });
+    table.appendChild(tr);
+  });
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ================= SQL TAB ================= */
+const SCHEMA_SQL = `
+CREATE TABLE customers (customer_id INTEGER, customer_name TEXT, city TEXT, signup_date TEXT);
+CREATE TABLE orders (order_id INTEGER, customer_id INTEGER, category TEXT, product TEXT, amount REAL, order_date TEXT, status TEXT);
+INSERT INTO customers VALUES
+(1,'Somchai','Bangkok','2025-11-01'),(2,'Malee','Chiang Mai','2025-11-15'),
+(3,'Anan','Bangkok','2025-12-01'),(4,'Suda','Khon Kaen','2025-12-10'),(5,'Kanya','Bangkok','2026-01-02');
+INSERT INTO orders VALUES
+(1,1,'Electronics','Headphone',1200,'2026-01-05','completed'),
+(2,2,'Fashion','Dress',890,'2026-01-06','completed'),
+(3,3,'Electronics','Mouse',350,'2026-01-07','cancelled'),
+(4,4,'Home','Lamp',450,'2026-01-08','completed'),
+(5,1,'Fashion','Shoes',1500,'2026-01-09','pending'),
+(6,5,'Electronics','Keyboard',690,'2026-01-10','completed'),
+(7,3,'Home','Blanket',320,'2026-01-11','completed'),
+(8,2,'Electronics','Charger',199,'2026-01-12','cancelled'),
+(9,4,'Fashion','Bag',2100,'2026-01-13','completed'),
+(10,5,'Home','Pillow',280,'2026-01-14','completed');
+`;
+
+const SQL_WEEKS = [
+  { title: "สัปดาห์ 1 — SELECT, WHERE, ORDER BY, JOIN", items: [
+    {prompt:"ดึงชื่อลูกค้า (customer_id), สินค้า, ยอดเงิน ของทุก order (ไม่ใช้ *)", hint:"SELECT customer_id, product, amount", answer:"SELECT customer_id, product, amount FROM orders;"},
+    {prompt:"หา order ที่สถานะ completed", hint:"WHERE status = 'completed'", answer:"SELECT * FROM orders WHERE status = 'completed';"},
+    {prompt:"หา order ที่เป็นหมวด Electronics และสถานะ completed", hint:"AND เชื่อมสองเงื่อนไข", answer:"SELECT * FROM orders WHERE category = 'Electronics' AND status = 'completed';"},
+    {prompt:"เรียง order ตามยอดเงินจากมากไปน้อย", hint:"ORDER BY amount DESC", answer:"SELECT * FROM orders ORDER BY amount DESC;"},
+    {prompt:"หาสินค้าที่ชื่อขึ้นต้นด้วย C", hint:"LIKE 'C%'", answer:"SELECT * FROM orders WHERE product LIKE 'C%';"},
+    {prompt:"JOIN: แสดงชื่อลูกค้าคู่กับสินค้าที่ซื้อ", hint:"JOIN customers ON customer_id", answer:"SELECT c.customer_name, o.product\nFROM orders o JOIN customers c ON o.customer_id = c.customer_id;"},
+    {prompt:"JOIN + WHERE: แสดงชื่อลูกค้าและเมืองของลูกค้าที่มี order สถานะ completed", hint:"JOIN ก่อน แล้วค่อย WHERE", answer:"SELECT c.customer_name, c.city\nFROM orders o JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.status = 'completed';"}
+  ]},
+  { title: "สัปดาห์ 2 — GROUP BY, Aggregate, Subquery, CASE WHEN", items: [
+    {prompt:"ยอดขายรวมต่อลูกค้าแต่ละคน เฉพาะ order ที่ completed", hint:"GROUP BY customer_id", answer:"SELECT customer_id, SUM(amount) AS total\nFROM orders WHERE status = 'completed' GROUP BY customer_id;"},
+    {prompt:"นับจำนวน order ในแต่ละหมวดสินค้า", hint:"COUNT(*)", answer:"SELECT category, COUNT(*) AS n FROM orders GROUP BY category;"},
+    {prompt:"HAVING: หาลูกค้าที่มียอดซื้อรวม (completed) มากกว่า 1000", hint:"HAVING SUM(amount) > 1000", answer:"SELECT customer_id, SUM(amount) AS total\nFROM orders WHERE status = 'completed'\nGROUP BY customer_id HAVING SUM(amount) > 1000;"},
+    {prompt:"Subquery: หาลูกค้าที่เคยมี order สถานะ cancelled อย่างน้อย 1 ครั้ง", hint:"DISTINCT customer_id WHERE status='cancelled'", answer:"SELECT DISTINCT customer_id FROM orders WHERE status = 'cancelled';"},
+    {prompt:"Subquery: หา order ที่ยอดเงินสูงกว่าค่าเฉลี่ยของยอดเงินทั้งหมด", hint:"WHERE amount > (SELECT AVG(amount) ...)", answer:"SELECT * FROM orders WHERE amount > (SELECT AVG(amount) FROM orders);"},
+    {prompt:"CASE WHEN: จัดกลุ่ม order เป็น high (>1000), medium (300–1000), low (<300)", hint:"CASE WHEN ... THEN ... END", answer:"SELECT order_id, amount,\n  CASE WHEN amount > 1000 THEN 'high'\n       WHEN amount >= 300 THEN 'medium'\n       ELSE 'low' END AS tier\nFROM orders;"},
+    {prompt:"JOIN + GROUP BY: ยอดขายรวมต่อเมือง เฉพาะ order ที่ completed", hint:"JOIN แล้ว GROUP BY c.city", answer:"SELECT c.city, SUM(o.amount) AS total\nFROM orders o JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.status = 'completed'\nGROUP BY c.city;"}
+  ]},
+  { title: "สัปดาห์ 3 — Window Function", items: [
+    {prompt:"ROW_NUMBER: จัดอันดับ order ของลูกค้าแต่ละคนตามยอดเงิน (มากไปน้อย)", hint:"PARTITION BY customer_id ORDER BY amount DESC", answer:"SELECT customer_id, order_id, amount,\n  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC) AS rn\nFROM orders;"},
+    {prompt:"RANK: จัดอันดับ order ทั้งหมดตามยอดเงิน", hint:"RANK() OVER (ORDER BY amount DESC)", answer:"SELECT order_id, amount, RANK() OVER (ORDER BY amount DESC) AS rnk FROM orders;"},
+    {prompt:"Running total: ยอดขายสะสมเรียงตามวันที่", hint:"SUM(amount) OVER (ORDER BY order_date)", answer:"SELECT order_date, amount,\n  SUM(amount) OVER (ORDER BY order_date) AS running_total\nFROM orders;"},
+    {prompt:"โจทย์รวม: ชื่อลูกค้า, เมือง, ยอดขายรวม (completed), และอันดับเทียบกับลูกค้าคนอื่น", hint:"GROUP BY ก่อน แล้วห่อด้วย RANK", answer:"SELECT c.customer_name, c.city, SUM(o.amount) AS total,\n  RANK() OVER (ORDER BY SUM(o.amount) DESC) AS customer_rank\nFROM orders o JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.status = 'completed'\nGROUP BY c.customer_name, c.city;"}
+  ]}
+];
+
+let db;
+let sqlCounter = 0;
+
+function buildSqlExerciseCard(ex){
+  const idx = sqlCounter++;
+  const card = document.createElement('div');
+  card.className = 'exercise';
+  card.innerHTML = `
+    <div class="ex-head"><div class="ex-num">${idx+1}</div><div>
+      <div class="ex-prompt">${ex.prompt}</div>
+      <button class="hint-toggle" data-hint="sql-${idx}">ดูคำใบ้</button>
+      <div class="hint-box" id="hint-sql-${idx}">${ex.hint}</div>
+    </div></div>
+    <div class="editor"><div class="editor-bar"><span>query.sql</span><span>SQLite</span></div>
+      <textarea id="q-sql-${idx}" spellcheck="false">-- เขียนคำตอบของคุณที่นี่
+</textarea></div>
+    <div class="btn-row">
+      <button class="action btn-run" data-run="sql-${idx}">▶ รันคำสั่ง</button>
+      <button class="action btn-answer" data-answer="sql-${idx}">ดูเฉลย</button>
+    </div>
+    <div class="result" id="resultwrap-sql-${idx}" style="display:none;"><div class="result-label">ผลลัพธ์ของคุณ</div><div id="result-sql-${idx}"></div></div>
+    <div class="answer-block" id="answer-sql-${idx}">
+      <div class="result-label">เฉลย</div><pre>${ex.answer}</pre>
+      <div class="result-label">ผลลัพธ์ที่ควรได้</div><div id="answerresult-sql-${idx}"></div>
+    </div>`;
+  card.dataset.answer = ex.answer;
+  return card;
+}
+
+const sqlContainer = document.getElementById('sql-exercises');
+SQL_WEEKS.forEach(week => {
+  const h = document.createElement('div');
+  h.className = 'week-head';
+  h.textContent = week.title;
+  sqlContainer.appendChild(h);
+  week.items.forEach(ex => sqlContainer.appendChild(buildSqlExerciseCard(ex)));
+});
+
+document.querySelectorAll('[data-run^="sql-"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-run');
+    const sql = document.getElementById('q-' + id).value;
+    const wrap = document.getElementById('resultwrap-' + id);
+    const out = document.getElementById('result-' + id);
+    wrap.style.display = 'block';
+    try{
+      const res = db.exec(sql);
+      if(res.length === 0){ renderTableInto(out, [], []); }
+      else{ renderTableInto(out, res[0].columns, res[0].values); }
+    }catch(err){
+      out.innerHTML = '';
+      const e = document.createElement('div');
+      e.className = 'result-error';
+      e.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+      out.appendChild(e);
+    }
+  });
+});
+document.querySelectorAll('[data-answer^="sql-"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-answer');
+    const block = document.getElementById('answer-' + id);
+    const showing = block.classList.toggle('show');
+    btn.textContent = showing ? 'ซ่อนเฉลย' : 'ดูเฉลย';
+    if(showing){
+      const outDiv = document.getElementById('answerresult-' + id);
+      if(!outDiv.dataset.rendered){
+        const answerSql = block.closest('.exercise').dataset.answer;
+        const res = db.exec(answerSql);
+        if(res.length === 0){ renderTableInto(outDiv, [], []); }
+        else{ renderTableInto(outDiv, res[0].columns, res[0].values); }
+        outDiv.dataset.rendered = '1';
+      }
+    }
+  });
+});
+document.querySelectorAll('[data-hint^="sql-"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-hint');
+    const box = document.getElementById('hint-' + id);
+    const showing = box.classList.toggle('show');
+    btn.textContent = showing ? 'ซ่อนคำใบ้' : 'ดูคำใบ้';
+  });
+});
+
+function setStatus(state, text){
+  document.getElementById('statusDot').className = 'dot' + (state === 'ok' ? ' ok' : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` })
+  .then(SQLlib => {
+    db = new SQLlib.Database();
+    db.run(SCHEMA_SQL);
+    setStatus('ok', 'เชื่อมต่อฐานข้อมูลสำเร็จ — พร้อมฝึกได้ทุกแท็บ');
+    const res = db.exec('SELECT o.order_id, c.customer_name, c.city, o.category, o.amount, o.status FROM orders o JOIN customers c ON o.customer_id = c.customer_id;');
+    renderTableInto(document.getElementById('schemaTable').parentElement, res[0].columns, res[0].values);
+  })
+  .catch(err => setStatus('bad', 'โหลดฐานข้อมูลไม่สำเร็จ: ' + err.message));
+
+/* ================= EXCEL TAB ================= */
+const EXCEL_DATA = [
+  {order_id:1, customer_name:'Somchai', city:'Bangkok', category:'Electronics', amount:1200, status:'completed'},
+  {order_id:2, customer_name:'Malee', city:'Chiang Mai', category:'Fashion', amount:890, status:'completed'},
+  {order_id:3, customer_name:'Anan', city:'Bangkok', category:'Electronics', amount:350, status:'cancelled'},
+  {order_id:4, customer_name:'Suda', city:'Khon Kaen', category:'Home', amount:450, status:'completed'},
+  {order_id:5, customer_name:'Somchai', city:'Bangkok', category:'Fashion', amount:1500, status:'pending'},
+  {order_id:6, customer_name:'Kanya', city:'Bangkok', category:'Electronics', amount:690, status:'completed'},
+  {order_id:7, customer_name:'Anan', city:'Bangkok', category:'Home', amount:320, status:'completed'},
+  {order_id:8, customer_name:'Malee', city:'Chiang Mai', category:'Electronics', amount:199, status:'cancelled'},
+  {order_id:9, customer_name:'Suda', city:'Khon Kaen', category:'Fashion', amount:2100, status:'completed'},
+  {order_id:10, customer_name:'Kanya', city:'Bangkok', category:'Home', amount:280, status:'completed'}
+];
+const REGION_MAP = {'Bangkok':'กลาง', 'Chiang Mai':'เหนือ', 'Khon Kaen':'อีสาน'};
+
+renderTableInto(
+  document.getElementById('excelTableWrap'),
+  ['order_id','customer_name','city','category','amount','status'],
+  EXCEL_DATA.map(r => [r.order_id, r.customer_name, r.city, r.category, r.amount, r.status])
+);
+
+document.getElementById('pivotRun').addEventListener('click', () => {
+  const rowField = document.getElementById('pivotRow').value;
+  const colField = document.getElementById('pivotCol').value;
+  const wrap = document.getElementById('pivotResultWrap');
+  const out = document.getElementById('pivotResult');
+  wrap.style.display = 'block';
+
+  if(!colField){
+    const groups = {};
+    EXCEL_DATA.forEach(r => { groups[r[rowField]] = (groups[r[rowField]] || 0) + r.amount; });
+    const rows = Object.keys(groups).map(k => [k, groups[k]]);
+    renderTableInto(out, [rowField, 'sum_amount'], rows);
+  }else{
+    const rowVals = [...new Set(EXCEL_DATA.map(r => r[rowField]))];
+    const colVals = [...new Set(EXCEL_DATA.map(r => r[colField]))];
+    const rows = rowVals.map(rv => {
+      const line = [rv];
+      colVals.forEach(cv => {
+        const sum = EXCEL_DATA.filter(r => r[rowField] === rv && r[colField] === cv)
+                              .reduce((a,r) => a + r.amount, 0);
+        line.push(sum);
+      });
+      return line;
+    });
+    renderTableInto(out, [rowField, ...colVals], rows);
+  }
+});
+
+document.getElementById('lookupRun').addEventListener('click', () => {
+  const name = document.getElementById('lookupName').value.trim();
+  const wrap = document.getElementById('lookupResultWrap');
+  const out = document.getElementById('lookupResult');
+  wrap.style.display = 'block';
+  const found = EXCEL_DATA.find(r => r.customer_name.toLowerCase() === name.toLowerCase());
+  if(!found){
+    out.innerHTML = '<div class="result-empty">ไม่พบชื่อนี้ ลองพิมพ์ เช่น Somchai, Malee, Anan, Suda, Kanya</div>';
+  }else{
+    renderTableInto(out, ['customer_name','city','region'], [[found.customer_name, found.city, REGION_MAP[found.city]]]);
+  }
+});
+
+const condWrap = document.getElementById('condFormatWrap');
+const ctable = document.createElement('table');
+const chead = document.createElement('tr');
+['order_id','customer_name','city','category','amount','status'].forEach(c => { const th=document.createElement('th'); th.textContent=c; chead.appendChild(th); });
+ctable.appendChild(chead);
+EXCEL_DATA.forEach(r => {
+  const tr = document.createElement('tr');
+  [r.order_id, r.customer_name, r.city, r.category, r.amount, r.status].forEach((v, i) => {
+    const td = document.createElement('td');
+    td.textContent = v;
+    if(i === 4 && r.amount > 1000) td.style.background = '#dff3ea';
+    if(i === 5 && r.status === 'cancelled') td.style.background = '#fbe4e1';
+    tr.appendChild(td);
+  });
+  ctable.appendChild(tr);
+});
+condWrap.appendChild(ctable);
+
+/* ================= STATS TAB ================= */
+document.getElementById('statsRun').addEventListener('click', () => {
+  const raw = document.getElementById('statsInput').value;
+  const nums = raw.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+  const wrap = document.getElementById('statsResultWrap');
+  const out = document.getElementById('statsResult');
+  wrap.style.display = 'block';
+  if(nums.length === 0){ out.innerHTML = '<div class="result-error">กรุณาพิมพ์ตัวเลข คั่นด้วยจุลภาค</div>'; return; }
+
+  const n = nums.length;
+  const mean = nums.reduce((a,b) => a+b, 0) / n;
+  const sorted = [...nums].sort((a,b) => a-b);
+  const median = n % 2 === 0 ? (sorted[n/2-1] + sorted[n/2]) / 2 : sorted[(n-1)/2];
+  const freq = {};
+  nums.forEach(x => freq[x] = (freq[x]||0)+1);
+  const maxFreq = Math.max(...Object.values(freq));
+  const modes = Object.keys(freq).filter(k => freq[k] === maxFreq);
+  const modeText = maxFreq <= 1 ? 'ไม่มีค่าซ้ำ (no mode)' : modes.join(', ');
+  const variance = nums.reduce((a,b) => a + Math.pow(b-mean,2), 0) / (n - 1 > 0 ? n - 1 : 1);
+  const sd = Math.sqrt(variance);
+
+  out.innerHTML = `<pre class="code-block">n = ${n}
+mean   = ${mean.toFixed(2)}
+median = ${median.toFixed(2)}
+mode   = ${modeText}
+sample std dev = ${sd.toFixed(2)}</pre>`;
+});
+
+document.querySelectorAll('[data-reveal]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-reveal');
+    const box = document.getElementById('reveal-' + id);
+    const showing = box.classList.toggle('show');
+    btn.textContent = showing ? 'ซ่อนคำตอบ' : 'ดูแนวทางคำตอบ';
+  });
+});
+
+/* ================= BI TAB (checklist) ================= */
+const BI_WEEK6 = [
+  "Import ข้อมูลตาราง orders (10 แถว) เข้า BI tool",
+  "สร้าง bar chart: ยอดขายรวมต่อ category",
+  "สร้าง line chart: ยอดขายตามวันที่ (order_date)",
+  "สร้าง KPI card แสดงยอดขายรวมทั้งหมด (SUM amount)",
+  "รวม 3 กราฟข้างต้นเป็น dashboard หน้าเดียว ตั้งชื่อให้สื่อความหมาย"
+];
+const BI_WEEK7 = [
+  "เพิ่ม filter/slicer ให้เลือกดูข้อมูลตาม city หรือ status",
+  "สร้าง calculated field: average order value",
+  "สร้าง calculated field ที่สอง: สัดส่วน order ที่ cancelled (%)",
+  "ทำ dashboard 2 ส่วน: ภาพรวม (KPI+trend) และรายละเอียด (ตาราง filter ได้)",
+  "เขียนสรุป 3 ประโยคว่า dashboard นี้เล่าเรื่องอะไร ใครควรดู"
+];
+
+function buildChecklist(containerId, items, prefix){
+  const ul = document.getElementById(containerId);
+  items.forEach((text, i) => {
+    const li = document.createElement('li');
+    const cid = prefix + '-' + i;
+    li.innerHTML = `<input type="checkbox" id="${cid}"><label for="${cid}">${text}</label>`;
+    ul.appendChild(li);
+  });
+}
+buildChecklist('bi-week6', BI_WEEK6, 'w6');
+buildChecklist('bi-week7', BI_WEEK7, 'w7');
+
+function updateBiProgress(){
+  const boxes = document.querySelectorAll('#tab-bi input[type=checkbox]');
+  let done = 0;
+  boxes.forEach(b => { if(b.checked) done++; b.nextElementSibling.classList.toggle('done', b.checked); });
+  document.getElementById('bi-progress').textContent = `ทำแล้ว ${done} / ${boxes.length}`;
+}
+document.getElementById('tab-bi').addEventListener('change', updateBiProgress);
+updateBiProgress();
+
+/* ================= PYTHON TAB ================= */
+function buildPyCard(prompt, code, output){
+  const div = document.createElement('div');
+  div.className = 'exercise';
+  const revealId = 'py-' + Math.random().toString(36).slice(2,9);
+  div.innerHTML = `
+    <div class="ex-prompt">${prompt}</div>
+    <pre class="code-block">${code}</pre>
+    ${output ? `<button class="reveal-toggle" data-py="${revealId}">ดูผลลัพธ์ที่ควรได้</button>
+    <div class="hint-box" id="pyout-${revealId}"><pre style="margin:0;white-space:pre-wrap;">${output}</pre></div>` : ''}
+  `;
+  return div;
+}
+
+const week8El = document.getElementById('py-week8');
+week8El.appendChild(buildPyCard(
+  "1–2. พื้นฐานภาษา: loop รายการยอดขาย + ฟังก์ชัน classify() (เทียบกับ CASE WHEN สัปดาห์ 2)",
+  `sales = [1200, 890, 350, 450, 1500, 690, 320, 199, 2100, 280]
+for s in sales:
+    print(s)
+
+def classify(amount):
+    if amount > 1000:
+        return 'high'
+    elif amount >= 300:
+        return 'medium'
+    else:
+        return 'low'`, null));
+week8El.appendChild(buildPyCard(
+  "3. โหลดข้อมูลเข้า pandas DataFrame แล้วดู 5 แถวแรก (orders.head())",
+  `import pandas as pd
+
+orders = pd.DataFrame({
+    'order_id': [1,2,3,4,5,6,7,8,9,10],
+    'customer_id': [1,2,3,4,1,5,3,2,4,5],
+    'category': ['Electronics','Fashion','Electronics','Home','Fashion',
+                 'Electronics','Home','Electronics','Fashion','Home'],
+    'amount': [1200,890,350,450,1500,690,320,199,2100,280],
+    'status': ['completed','completed','cancelled','completed','pending',
+               'completed','completed','cancelled','completed','completed']
+})
+print(orders.head())`,
+`   order_id  customer_id     category  amount     status
+0         1            1  Electronics  1200.0  completed
+1         2            2      Fashion   890.0  completed
+2         3            3  Electronics   350.0  cancelled
+3         4            4         Home   450.0  completed
+4         5            1      Fashion  1500.0    pending`));
+week8El.appendChild(buildPyCard(
+  "4. กรองเฉพาะ order ที่ status == 'completed'",
+  `completed = orders[orders['status'] == 'completed']
+print(len(completed))`,
+`7`));
+week8El.appendChild(buildPyCard(
+  "5. groupby('customer_id') แล้วหา sum ของ amount — เทียบกับ SQL สัปดาห์ 2 ข้อ 1",
+  `total_by_customer = completed.groupby('customer_id')['amount'].sum()
+print(total_by_customer)`,
+`customer_id
+1    1200.0
+2     890.0
+3     320.0
+4    2550.0
+5     970.0
+Name: amount, dtype: float64`));
+
+const week9El = document.getElementById('py-week9');
+week9El.appendChild(buildPyCard(
+  "1. merge() customers กับ orders — เทียบกับ JOIN สัปดาห์ 1 ข้อ 6",
+  `customers = pd.DataFrame({
+    'customer_id': [1,2,3,4,5],
+    'customer_name': ['Somchai','Malee','Anan','Suda','Kanya'],
+    'city': ['Bangkok','Chiang Mai','Bangkok','Khon Kaen','Bangkok']
+})
+merged = orders.merge(customers, on='customer_id')`, null));
+week9El.appendChild(buildPyCard(
+  "2. pivot_table สรุปยอดขายรวมต่อ city และ status — เทียบกับ Pivot Table สัปดาห์ 4",
+  `pivot = merged.pivot_table(index='city', columns='status',
+                            values='amount', aggfunc='sum', fill_value=0)
+print(pivot)`,
+`status      cancelled  completed  pending
+city
+Bangkok           350       2490     1500
+Chiang Mai        199        890        0
+Khon Kaen           0       2550        0`));
+week9El.appendChild(buildPyCard(
+  "3. สคริปต์รวม: merge → filter completed → groupby city → เรียง → top 3",
+  `top_cities = (merged[merged['status'] == 'completed']
+              .groupby('city')['amount'].sum()
+              .sort_values(ascending=False).head(3))
+print(top_cities)`,
+`city
+Khon Kaen     2550.0
+Bangkok       2490.0
+Chiang Mai     890.0
+Name: amount, dtype: float64`));
+
+document.addEventListener('click', (e) => {
+  if(e.target.matches('[data-py]')){
+    const id = e.target.getAttribute('data-py');
+    const box = document.getElementById('pyout-' + id);
+    const showing = box.classList.toggle('show');
+    e.target.textContent = showing ? 'ซ่อนผลลัพธ์' : 'ดูผลลัพธ์ที่ควรได้';
+  }
+});
+</script>
